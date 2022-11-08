@@ -17,7 +17,7 @@ module global_variables
   real(8) :: x_left, x_right, L_matter, hx
 
 ! time grid
-  real(8),parameter :: dt = 1d0
+  real(8) :: dt
   integer,parameter :: nt = 10000
   
   
@@ -29,6 +29,7 @@ module global_variables
   real(8),allocatable :: xx(:)
   complex(8),allocatable :: zE_shg(:)
   complex(8),allocatable :: zE_shg_o(:),zE_shg_n(:),zG_E_shg(:), zPt(:)
+  complex(8),allocatable :: zdE_shg(:),zG_dE_shg(:)
 
 
 end module global_variables
@@ -49,10 +50,10 @@ subroutine input
   integer :: ix
   
   x_left = -1d6*nm
-  x_right = 1.1d6*nm
-  L_matter = 1d6*nm
+  x_right = 1.1d8*nm
+  L_matter = 1d8*nm
 
-  hx = 40d0*nm
+  hx = 200d0*nm
 
 
   write(*,*)"original hx =",hx
@@ -60,7 +61,7 @@ subroutine input
   nx = aint( (x_right -x_left)/hx ) + 1
   hx = (x_right -x_left)/nx
   write(*,*)"refined hx =",hx
-
+  dt = hx/v_SHG
 
   allocate(zE_shg(0-2:nx+2))
   allocate(zE_shg_o(0:nx),zE_shg_n(0:nx))
@@ -90,7 +91,8 @@ subroutine input
   end do
 
 
-  allocate(zPt(mx_s:mx_e))
+  allocate(zPt(mx_s:mx_e),zdE_shg(mx_s-1:mx_e+1),zG_dE_shg(mx_s:mx_e))
+  zdE_shg = 0d0
 
 end subroutine input
 !-------------------------------------------------------------------------
@@ -122,13 +124,29 @@ subroutine dt_evolve(tt)
 
 
   call calc_Pt(tt)
-  call calc_zG_E_shg
-
-  zE_shg_n(0:nx) = zE_shg_o(0:nx) -(2d0*dt*V_SHG)*( -zG_E_shg(0:nx) )
-
-  zE_shg_n(mx_s:mx_e) = zE_shg_n(mx_s:mx_e) -(2d0*dt*V_SHG)*( zPt(mx_s:mx_e) )
+!  call calc_zG_E_shg
 
 
+
+  zE_shg_n(0) =  0d0
+  zE_shg_n(1:nx) = zE_shg(0:nx-1)
+
+
+
+! predictor
+  zdE_shg = 0d0
+  zdE_shg(mx_s:mx_e) = v_SHG*dt*zPt(mx_s:mx_e)
+
+! corrector 1st
+  call calc_zG_dE_shg
+  zdE_shg(mx_s:mx_e) = v_SHG*dt*(zPt(mx_s:mx_e)-0.5d0*zG_dE_shg(mx_s:mx_e))
+
+! corrector 2nd
+  call calc_zG_dE_shg
+  zdE_shg(mx_s:mx_e) = v_SHG*dt*(zPt(mx_s:mx_e)-0.5d0*zG_dE_shg(mx_s:mx_e))
+
+
+  zE_shg_n(mx_s:mx_e) = zE_shg_n(mx_s:mx_e) + zdE_shg(mx_s:mx_e)
 
   zE_shg_o(0:nx) = zE_shg(0:nx)
   zE_shg(0:nx) = zE_shg_n(0:nx)
@@ -144,6 +162,7 @@ subroutine calc_Pt(tt)
 
   zPt = 0d0
 
+! calc at t=t
   do ix = mx_s, mx_e
     ss = tt - 0.5d0*Tpulse_IR - xx(ix)/v_IR
     if(abs(ss)<0.5d0*Tpulse_IR)then
@@ -157,24 +176,56 @@ subroutine calc_Pt(tt)
 
   end do
 
+! calc at t=t+dt
+  do ix = mx_s, mx_e
+    ss = tt+dt - 0.5d0*Tpulse_IR - xx(ix)/v_IR
+    if(abs(ss)<0.5d0*Tpulse_IR)then
+      st = tt+dt - 0.5d0*Tpulse_IR - xx(ix)/v_THz
+      if(abs(st)<0.5d0*Tpulse_THz)then
+        zPt(ix) = zPt(ix) &
+            -zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st) &
+            *cos(pi*ss/Tpulse_IR)**4*exp(zi*2d0*omega_IR*((1d0/V_SHG)-(1d0/V_IR))*xx(ix))
+      end if
+    end if
+
+  end do
+
+  zPt = 0.5d0*zPt
+
 
 end subroutine calc_Pt
+!!-------------------------------------------------------------------------
+!subroutine calc_zG_E_shg
+!  use global_variables
+!  implicit none
+!  integer :: ix
+!
+!  zG_E_shg = 0d0
+!  do ix = 0, nx
+!!    zG_E_shg(ix) = ( &
+!!        (1d0/12d0)*(zE_shg(ix-2)-zE_shg(ix+2)) &
+!!        -(2d0/3d0)*(zE_shg(ix-1)-zE_shg(ix+1)))/hx
+!
+!    zG_E_shg(ix) = (zE_shg(ix+1)-zE_shg(ix-1))/(2d0*hx)
+!  end do
+!  
+!end subroutine calc_zG_E_shg
 !-------------------------------------------------------------------------
-subroutine calc_zG_E_shg
+subroutine calc_zG_dE_shg
   use global_variables
   implicit none
   integer :: ix
 
-  zG_E_shg = 0d0
-  do ix = 0, nx
+  zG_dE_shg = 0d0
+  do ix = mx_s, mx_e
 !    zG_E_shg(ix) = ( &
 !        (1d0/12d0)*(zE_shg(ix-2)-zE_shg(ix+2)) &
 !        -(2d0/3d0)*(zE_shg(ix-1)-zE_shg(ix+1)))/hx
 
-    zG_E_shg(ix) = (zE_shg(ix+1)-zE_shg(ix-1))/(2d0*hx)
+    zG_dE_shg(ix) = (zdE_shg(ix+1)-zdE_shg(ix-1))/(2d0*hx)
   end do
   
-end subroutine calc_zG_E_shg
+end subroutine calc_zG_dE_shg
 !-------------------------------------------------------------------------
 subroutine write_fields(it)
   use global_variables 
@@ -208,7 +259,7 @@ subroutine write_fields(it)
       E_THz = 0d0
     end if
 
-    write(20,"(999e16.6e3)")xx(ix),E_IR,E_THz,abs(zE_shg(ix))
+    write(20,"(999e16.6e3)")xx(ix),E_IR,E_THz,abs(zE_shg(ix)),zE_shg(ix)
 
   end do
   close(20)
