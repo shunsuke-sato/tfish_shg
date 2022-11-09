@@ -58,9 +58,9 @@ subroutine input
   implicit none
   integer :: ix
 
-  t_delay = 250d0*fs
+  t_delay = 600d0*fs
 
-  Tprop = 100.0d3*fs
+  Tprop = 300.0d3*fs
   write(*,*)"Propagation time (a.u.)",Tprop
   write(*,*)"Propagation length (nm)",v_SHG*Tprop/nm
 
@@ -178,17 +178,17 @@ subroutine calc_Pt(tt)
     if(abs(ss)<0.5d0*Tpulse_IR)then
       st = (zz -v_THz*(ttt-t_delay))/v_THz
       if(abs(st)<0.5d0*Tpulse_THz)then
-        phase_z = 2d0*k_IR*zz-k_SHG*zz+k_THz*zz-omega_THz*(ttt-t_delay)
+        phase_z = 2d0*k_IR*zz-k_SHG*zz !+k_THz*zz-omega_THz*(ttt-t_delay)
 
         ww_z_IR = w0_IR*sqrt(1d0+(lambda_IR*zz/(pi*w0_IR**2))**2)
         ww_z_THz = w0_THz*sqrt(1d0+(lambda_THz*zz/(pi*w0_THz**2))**2)
         phase_G_IR = -atan(lambda_IR*zz/(pi*w0_IR**2))
         phase_G_THz = -atan(lambda_THz*zz/(pi*w0_THz**2))
 
-        phase_z = phase_z + phase_G_IR + phase_G_THz
+        phase_z = phase_z !+ phase_G_IR + phase_G_THz ! ignore 
 
         zPt(ix) = zPt(ix) &
-            +zi* cos(pi*st/Tpulse_THz)**2*cos(pi*ss/Tpulse_IR)**4 &
+            +zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st)*cos(pi*ss/Tpulse_IR)**4 &
             *(w0_IR/ww_z_IR)**2*(w0_THz/ww_z_THz) &
             *exp(zi*phase_z)
       end if
@@ -204,18 +204,18 @@ subroutine calc_Pt(tt)
     if(abs(ss)<0.5d0*Tpulse_IR)then
       st = (zz -v_THz*(ttt-t_delay))/v_THz
       if(abs(st)<0.5d0*Tpulse_THz)then
-        phase_z = 2d0*k_IR*zz-k_SHG*zz+k_THz*zz-omega_THz*(ttt-t_delay)
+        phase_z = 2d0*k_IR*zz-k_SHG*zz !+k_THz*zz-omega_THz*(ttt-t_delay)
 
         ww_z_IR = w0_IR*sqrt(1d0+(lambda_IR*zz/(pi*w0_IR**2))**2)
         ww_z_THz = w0_THz*sqrt(1d0+(lambda_THz*zz/(pi*w0_THz**2))**2)
         phase_G_IR = -atan(lambda_IR*zz/(pi*w0_IR**2))
         phase_G_THz = -atan(lambda_THz*zz/(pi*w0_THz**2))
 
-        phase_z = phase_z + phase_G_IR + phase_G_THz
+        phase_z = phase_z !+ phase_G_IR + phase_G_THz ! ignore
 
 
         zPt(ix) = zPt(ix) &
-            +zi* cos(pi*st/Tpulse_THz)**2*cos(pi*ss/Tpulse_IR)**4 &
+            +zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st)*cos(pi*ss/Tpulse_IR)**4 &
             *(w0_IR/ww_z_IR)**2*(w0_THz/ww_z_THz) &
             *exp(zi*phase_z)
       end if
@@ -290,7 +290,7 @@ subroutine write_fields(it)
     if(abs(st)<0.5d0*Tpulse_THz)then
       ww_z_THz = w0_THz*sqrt(1d0+(lambda_THz*zz/(pi*w0_THz**2))**2)
       phase_G_THz = -atan(lambda_THz*zz/(pi*w0_THz**2))
-      phase_z = k_THz*zz-omega_THz*(ttt-t_delay)+phase_G_THz
+      phase_z = k_THz*zz-omega_THz*(ttt-t_delay) !+phase_G_THz !ignore
       E_THz = real(exp(zi*phase_z))
 
     end if
