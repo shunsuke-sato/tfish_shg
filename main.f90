@@ -22,17 +22,18 @@ module global_variables
   
   
 ! electric field
-  real(8),parameter :: omega_IR = 1.55d0*ev, Tpulse_IR = 100d0*fs
+  real(8),parameter :: omega_IR = 1.55d0*ev, Tpulse_IR = 130d0*fs*0.5d0*pi/(acos(0.5d0**0.25d0))
   real(8),parameter :: omega_SHG = 2d0*omega_IR
-  real(8),parameter :: omega_THz = 0.00414d0*ev, Tpulse_THz = 5d3*fs
-!  real(8),parameter :: v_IR = clight/1.00027505d0, v_SHG = clight/1.00028276d0
-!  real(8),parameter :: v_THz = clight/(1d0+274d-6)
-  real(8),parameter :: v_IR = clight, v_SHG = clight
-  real(8),parameter :: v_THz = clight
+  real(8),parameter :: omega_THz = 0.00414d0*ev, Tpulse_THz = 1d3*fs*0.5d0*pi/(acos(0.5d0**0.25d0))
+  real(8),parameter :: v_IR = clight/1.00027505d0, v_SHG = clight/1.00028276d0
+  real(8),parameter :: v_THz = clight/(1d0+274d-6)
+!  real(8),parameter :: v_IR = clight, v_SHG = clight
+!  real(8),parameter :: v_THz = clight
   real(8),parameter :: k_IR = omega_IR/v_IR,k_SHG = omega_SHG/v_SHG
   real(8),parameter :: k_THz = omega_THz/v_THz
   real(8),parameter :: w0_IR=3.3d-6*1d9*nm, w0_THz=0.6d-3*1d9*nm
   real(8),parameter :: lambda_IR=2d0*pi/k_IR,lambda_THz=2d0*pi/k_THz
+  real(8),parameter :: lambda_SHG=2d0*pi/k_SHG,w0_SHG=w0_IR/sqrt(2d0)
   real(8),allocatable :: xx(:)
   complex(8),allocatable :: zE_shg(:)
   complex(8),allocatable :: zE_shg_o(:),zE_shg_n(:),zG_E_shg(:), zPt(:)
@@ -58,11 +59,13 @@ subroutine input
   implicit none
   integer :: ix
 
-  t_delay = 600d0*fs
+  t_delay = 400d0*fs
 
-  Tprop = 300.0d3*fs
+  Tprop = 100.0d3*fs
   write(*,*)"Propagation time (a.u.)",Tprop
   write(*,*)"Propagation length (nm)",v_SHG*Tprop/nm
+  write(*,*)"Tpulse_IR  (fs)",Tpulse_IR/fs
+  write(*,*)"Tpulse_THz (fs)",Tpulse_THz/fs
 
 
   dt = 1d0*fs
@@ -128,7 +131,8 @@ subroutine propagation
 
   do it = 0, nt
     
-    if(mod(it,nt/100)==0)then
+!    if(mod(it,nt/100)==0)then
+    if(1==0)then
       call write_fields(it)
       write(*,*)'tt=',dt*it+t_ini
     end if
@@ -141,7 +145,7 @@ subroutine propagation
   it = 0
   call write_fields(it)
 
-  write(*,'(A,2x,2e26.16e3)')'t_delay (a.u.), SHG intensity (arb. units)',t_delay,sum(abs(zE_shg)**2*hx)
+  write(*,'(A,2x,2e26.16e3)')'t_delay (fs), SHG intensity (arb. units)',t_delay/fs,sum(abs(zE_shg)**2*hx)
 
 end subroutine propagation
 !-------------------------------------------------------------------------
@@ -166,7 +170,8 @@ subroutine calc_Pt(tt)
   integer :: ix
   real(8) :: ttt, ss, st, phase_z
   real(8) :: zz
-  real(8) :: ww_z_IR, ww_z_THz, phase_G_IR, phase_G_THz
+  real(8) :: ww_z_IR, ww_z_THz, phase_G_IR, phase_G_THz, phase_G_SHG
+  real(8) :: ww_z_SHG
 
   zPt = 0d0
 
@@ -182,14 +187,16 @@ subroutine calc_Pt(tt)
 
         ww_z_IR = w0_IR*sqrt(1d0+(lambda_IR*zz/(pi*w0_IR**2))**2)
         ww_z_THz = w0_THz*sqrt(1d0+(lambda_THz*zz/(pi*w0_THz**2))**2)
+        ww_z_SHG = w0_SHG*sqrt(1d0+(lambda_SHG*zz/(pi*w0_SHG**2))**2)
         phase_G_IR = -atan(lambda_IR*zz/(pi*w0_IR**2))
         phase_G_THz = -atan(lambda_THz*zz/(pi*w0_THz**2))
+        phase_G_SHG = -atan(lambda_SHG*zz/(pi*w0_SHG**2))
 
-        phase_z = phase_z !+ phase_G_IR + phase_G_THz ! ignore 
+        phase_z = phase_z + 2d0*phase_G_IR -phase_G_SHG
 
         zPt(ix) = zPt(ix) &
-            +zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st)*cos(pi*ss/Tpulse_IR)**4 &
-            *(w0_IR/ww_z_IR)**2*(w0_THz/ww_z_THz) &
+            +zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st+ phase_G_THz)*cos(pi*ss/Tpulse_IR)**4 &
+            *(w0_IR/ww_z_IR)**2*(w0_THz/ww_z_THz)*(ww_z_SHG/w0_SHG) &
             *exp(zi*phase_z)
       end if
     end if
@@ -208,15 +215,16 @@ subroutine calc_Pt(tt)
 
         ww_z_IR = w0_IR*sqrt(1d0+(lambda_IR*zz/(pi*w0_IR**2))**2)
         ww_z_THz = w0_THz*sqrt(1d0+(lambda_THz*zz/(pi*w0_THz**2))**2)
+        ww_z_SHG = w0_SHG*sqrt(1d0+(lambda_SHG*zz/(pi*w0_SHG**2))**2)
         phase_G_IR = -atan(lambda_IR*zz/(pi*w0_IR**2))
         phase_G_THz = -atan(lambda_THz*zz/(pi*w0_THz**2))
+        phase_G_SHG = -atan(lambda_SHG*zz/(pi*w0_SHG**2))
 
-        phase_z = phase_z !+ phase_G_IR + phase_G_THz ! ignore
-
+        phase_z = phase_z + 2d0*phase_G_IR -phase_G_SHG
 
         zPt(ix) = zPt(ix) &
-            +zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st)*cos(pi*ss/Tpulse_IR)**4 &
-            *(w0_IR/ww_z_IR)**2*(w0_THz/ww_z_THz) &
+            +zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st+ phase_G_THz)*cos(pi*ss/Tpulse_IR)**4 &
+            *(w0_IR/ww_z_IR)**2*(w0_THz/ww_z_THz)*(ww_z_SHG/w0_SHG) &
             *exp(zi*phase_z)
       end if
     end if
