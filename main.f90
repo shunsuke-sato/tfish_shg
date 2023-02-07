@@ -35,7 +35,8 @@ module global_variables
   real(8),parameter :: lambda_IR=2d0*pi/k_IR,lambda_THz=2d0*pi/k_THz
   real(8),parameter :: lambda_SHG=2d0*pi/k_SHG,w0_SHG=w0_IR/sqrt(2d0)
   real(8),allocatable :: xx(:)
-  complex(8),allocatable :: zE_shg(:)
+  complex(8),parameter :: zchi2 = 1d0
+  complex(8),allocatable :: zE_shg(:),zE_shg_chi2(:)
   complex(8),allocatable :: zE_shg_o(:),zE_shg_n(:),zG_E_shg(:), zPt(:)
   complex(8),allocatable :: zdE_shg(:),zG_dE_shg(:)
 !  real(8),allocatable :: ww_z_IR(:), ww_z_THz(:), phase_G_IR(:), phase_G_THz(:)
@@ -59,9 +60,11 @@ subroutine input
   implicit none
   integer :: ix
 
-  t_delay = 400d0*fs
+!  t_delay = 0d0*fs
+  read(*,*)t_delay
+  t_delay = t_delay*fs
 
-  Tprop = 100.0d3*fs
+  Tprop = 400.0d3*fs
   write(*,*)"Propagation time (a.u.)",Tprop
   write(*,*)"Propagation length (nm)",v_SHG*Tprop/nm
   write(*,*)"Tpulse_IR  (fs)",Tpulse_IR/fs
@@ -94,7 +97,7 @@ subroutine input
   write(*,*)"lambda_THz(nm) =",lambda_THz/nm
   write(*,*)"lambda_IR(nm)  =",lambda_IR/nm
 
-  allocate(zE_shg(0:nx))
+  allocate(zE_shg(0:nx), zE_shg_chi2(0:nx))
   allocate(zE_shg_o(0:nx),zE_shg_n(0:nx))
   allocate(zG_E_shg(0:nx))
 
@@ -128,6 +131,8 @@ subroutine propagation
   implicit none
   integer :: it
   real(8):: tt
+  real(8) :: s_tfish, s_interference
+  character(256) :: char
 
   do it = 0, nt
     
@@ -145,7 +150,10 @@ subroutine propagation
   it = 0
   call write_fields(it)
 
-  write(*,'(A,2x,2e26.16e3)')'t_delay (fs), SHG intensity (arb. units)',t_delay/fs,sum(abs(zE_shg)**2*hx)
+  s_tfish = sum(abs(zE_shg)**2)*hx
+  s_interference = sum(real(zE_shg*conjg(zE_shg_chi2)))*hx
+  char = "t_delay (fs), TFISH intensity (arb. units), Re[E_TFISH*E_chi2^*]"
+  write(*,'(A,2x,3e26.16e3)')trim(char),t_delay/fs,s_tfish, s_interference
 
 end subroutine propagation
 !-------------------------------------------------------------------------
@@ -232,6 +240,13 @@ subroutine calc_Pt(tt)
   end do
 
   zPt = 0.5d0*zPt
+
+
+! calc chi2 contribution
+  do ix = 0, nx
+    ss = xx(ix)/v_SHG
+    zE_shg_chi2(ix) = zi*zchi2*cos(pi*ss/Tpulse_IR)**4
+  end do
 
 
 end subroutine calc_Pt
