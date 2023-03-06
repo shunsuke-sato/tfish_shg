@@ -31,7 +31,7 @@ module global_variables
 !  real(8),parameter :: v_THz = clight
   real(8),parameter :: k_IR = omega_IR/v_IR,k_SHG = omega_SHG/v_SHG
   real(8),parameter :: k_THz = omega_THz/v_THz
-  real(8),parameter :: w0_IR=3.3d-6*1d9*nm, w0_THz=0.6d-3*1d9*nm
+  real(8),parameter :: w0_IR=0.025d-3*1d9*nm, w0_THz=0.59d-3*1d9*nm
   real(8),parameter :: lambda_IR=2d0*pi/k_IR,lambda_THz=2d0*pi/k_THz
   real(8),parameter :: lambda_SHG=2d0*pi/k_SHG,w0_SHG=w0_IR/sqrt(2d0)
   real(8),allocatable :: xx(:)
@@ -186,6 +186,7 @@ subroutine calc_Pt(tt)
   real(8) :: ww_z_IR, ww_z_THz, phase_G_IR, phase_G_THz, phase_G_SHG
   real(8) :: ww_z_SHG
   complex(8) :: zr_IR, zr_SHG, zr_THz
+  complex(8) :: zf_IR, zf_SHG, zf_THz
 
 ! reflection coeeficients
   zr_IR = ( sqrt(zeps_IR - sin(theta)**2) - zeps_IR*cos(theta) )/ &
