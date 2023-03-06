@@ -42,11 +42,6 @@ module global_variables
 !  real(8),allocatable :: ww_z_IR(:), ww_z_THz(:), phase_G_IR(:), phase_G_THz(:)
   real(8) :: t_delay, t_ini, Tprop
 
-  real(8),parameter :: theta = 2d0*pi*75d0/360d0
-  complex(8),parameter :: zeps_IR = (-17.2d0, 29.6d0)
-  complex(8),parameter :: zeps_SHG= (-5.11d0, 9.77d0)
-  complex(8),parameter :: zeps_THz= (-1.4d4, 2.8d5)
-  
 
 end module global_variables
 !-------------------------------------------------------------------------
@@ -185,19 +180,6 @@ subroutine calc_Pt(tt)
   real(8) :: zz
   real(8) :: ww_z_IR, ww_z_THz, phase_G_IR, phase_G_THz, phase_G_SHG
   real(8) :: ww_z_SHG
-  complex(8) :: zr_IR, zr_SHG, zr_THz
-
-! reflection coeeficients
-  zr_IR = ( sqrt(zeps_IR - sin(theta)**2) - zeps_IR*cos(theta) )/ &
-          ( sqrt(zeps_IR - sin(theta)**2) + zeps_IR*cos(theta) )
-
-  zr_SHG= ( sqrt(zeps_SHG - sin(theta)**2) - zeps_SHG*cos(theta) )/ &
-          ( sqrt(zeps_SHG - sin(theta)**2) + zeps_SHG*cos(theta) )
-
-  zr_THz= ( sqrt(zeps_THz - sin(theta)**2) - zeps_THz*cos(theta) )/ &
-          ( sqrt(zeps_THz - sin(theta)**2) + zeps_THz*cos(theta) )
-  
-  
 
   zPt = 0d0
 
@@ -220,20 +202,8 @@ subroutine calc_Pt(tt)
 
         phase_z = phase_z + 2d0*phase_G_IR -phase_G_SHG
 
-        if(zz<0d0)then
-           zf_IR = 1d0
-           zf_SHG = 1d0
-           zf_THz = 1d0
-        else
-           zf_IR = zr_IR
-           zf_SHG = zr_SHG
-           zf_THz = zr_THz
-        end if
-
         zPt(ix) = zPt(ix) &
-             +zi*(zf_IR**2/zf_SHG) &
-            *cos(pi*st/Tpulse_THz)**2*real(zf_THz*exp(zi*(omega_THz*st+ phase_G_THz))) &
-            *cos(pi*ss/Tpulse_IR)**4 &
+            +zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st+ phase_G_THz)*cos(pi*ss/Tpulse_IR)**4 &
             *(w0_IR/ww_z_IR)**2*(w0_THz/ww_z_THz)*(ww_z_SHG/w0_SHG) &
             *exp(zi*phase_z)
       end if
@@ -242,7 +212,7 @@ subroutine calc_Pt(tt)
   end do
 
 ! calc at t=t+dt
-  ttt = tt + dt
+  ttt = tt+dt
   do ix = 0, nx
     zz = xx(ix) + v_SHG*ttt
     ss = (zz - v_IR*ttt)/V_IR
@@ -260,20 +230,8 @@ subroutine calc_Pt(tt)
 
         phase_z = phase_z + 2d0*phase_G_IR -phase_G_SHG
 
-        if(zz<0d0)then
-           zf_IR = 1d0
-           zf_SHG = 1d0
-           zf_THz = 1d0
-        else
-           zf_IR = zr_IR
-           zf_SHG = zr_SHG
-           zf_THz = zr_THz
-        end if
-
         zPt(ix) = zPt(ix) &
-             +zi*(zf_IR**2/zf_SHG) &
-            *cos(pi*st/Tpulse_THz)**2*real(zf_THz*exp(zi*(omega_THz*st+ phase_G_THz))) &
-            *cos(pi*ss/Tpulse_IR)**4 &
+            +zi* cos(pi*st/Tpulse_THz)**2*cos(omega_THz*st+ phase_G_THz)*cos(pi*ss/Tpulse_IR)**4 &
             *(w0_IR/ww_z_IR)**2*(w0_THz/ww_z_THz)*(ww_z_SHG/w0_SHG) &
             *exp(zi*phase_z)
       end if
