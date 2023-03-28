@@ -186,7 +186,7 @@ subroutine calc_Pt(tt)
   real(8) :: ww_z_IR, ww_z_THz, phase_G_IR, phase_G_THz, phase_G_SHG
   real(8) :: ww_z_SHG
   complex(8) :: zr_IR, zr_SHG, zr_THz
-  complex(8) :: zf_IR, zf_SHG, zf_THz
+  complex(8) :: zf_IR, zf_SHG, zf_THz, zfact
 
 ! reflection coeeficients
   zr_IR = ( sqrt(zeps_IR - sin(theta)**2) - zeps_IR*cos(theta) )/ &
@@ -208,9 +208,9 @@ subroutine calc_Pt(tt)
     zz = xx(ix) + v_SHG*ttt
     ss = (zz - v_IR*ttt)/V_IR
     if(abs(ss)<0.5d0*Tpulse_IR)then
-      st = (zz -v_THz*(ttt-t_delay))/v_THz
+      st = (zz -v_THz*(ttt+t_delay))/v_THz
       if(abs(st)<0.5d0*Tpulse_THz)then
-        phase_z = 2d0*k_IR*zz-k_SHG*zz !+k_THz*zz-omega_THz*(ttt-t_delay)
+        phase_z = 2d0*k_IR*zz-k_SHG*zz !+k_THz*zz-omega_THz*(ttt+t_delay)
 
         ww_z_IR = w0_IR*sqrt(1d0+(lambda_IR*zz/(pi*w0_IR**2))**2)
         ww_z_THz = w0_THz*sqrt(1d0+(lambda_THz*zz/(pi*w0_THz**2))**2)
@@ -248,9 +248,9 @@ subroutine calc_Pt(tt)
     zz = xx(ix) + v_SHG*ttt
     ss = (zz - v_IR*ttt)/V_IR
     if(abs(ss)<0.5d0*Tpulse_IR)then
-      st = (zz -v_THz*(ttt-t_delay))/v_THz
+      st = (zz -v_THz*(ttt+t_delay))/v_THz
       if(abs(st)<0.5d0*Tpulse_THz)then
-        phase_z = 2d0*k_IR*zz-k_SHG*zz !+k_THz*zz-omega_THz*(ttt-t_delay)
+        phase_z = 2d0*k_IR*zz-k_SHG*zz !+k_THz*zz-omega_THz*(ttt+t_delay)
 
         ww_z_IR = w0_IR*sqrt(1d0+(lambda_IR*zz/(pi*w0_IR**2))**2)
         ww_z_THz = w0_THz*sqrt(1d0+(lambda_THz*zz/(pi*w0_THz**2))**2)
@@ -286,9 +286,13 @@ subroutine calc_Pt(tt)
 
 
 ! calc chi2 contribution
+  zfact = 2d0*cos(theta)/&
+      ( sqrt(zeps_SHG - sin(theta)**2) + zeps_SHG*cos(theta) )
+
+
   do ix = 0, nx
     ss = xx(ix)/v_SHG
-    zE_shg_chi2(ix) = zi*zchi2*cos(pi*ss/Tpulse_IR)**4
+    zE_shg_chi2(ix) = zi*zchi2*(1d0/zr_SHG)*cos(pi*ss/Tpulse_IR)**4*zfact**2
   end do
 
 
@@ -352,11 +356,11 @@ subroutine write_fields(it)
       E_IR = cos(pi*ss/Tpulse_IR)**4
     end if
 
-    st = (zz -v_THz*(ttt-t_delay))/v_THz
+    st = (zz -v_THz*(ttt+t_delay))/v_THz
     if(abs(st)<0.5d0*Tpulse_THz)then
       ww_z_THz = w0_THz*sqrt(1d0+(lambda_THz*zz/(pi*w0_THz**2))**2)
       phase_G_THz = -atan(lambda_THz*zz/(pi*w0_THz**2))
-      phase_z = k_THz*zz-omega_THz*(ttt-t_delay) !+phase_G_THz !ignore
+      phase_z = k_THz*zz-omega_THz*(ttt+t_delay) !+phase_G_THz !ignore
       E_THz = real(exp(zi*phase_z))
 
     end if
