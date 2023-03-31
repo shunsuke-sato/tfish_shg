@@ -35,15 +35,15 @@ module global_variables
   real(8),parameter :: lambda_IR=2d0*pi/k_IR,lambda_THz=2d0*pi/k_THz
   real(8),parameter :: lambda_SHG=2d0*pi/k_SHG,w0_SHG=w0_IR/sqrt(2d0)
   real(8),allocatable :: xx(:)
-  complex(8),parameter :: zchi2 = 1d0
+  complex(8),parameter :: zchi2 = -1d0
   complex(8),allocatable :: zE_shg(:),zE_shg_chi2(:)
   complex(8),allocatable :: zE_shg_o(:),zE_shg_n(:),zG_E_shg(:), zPt(:)
   complex(8),allocatable :: zdE_shg(:),zG_dE_shg(:)
 !  real(8),allocatable :: ww_z_IR(:), ww_z_THz(:), phase_G_IR(:), phase_G_THz(:)
   real(8) :: t_delay, t_ini, Tprop
 
-  real(8),parameter :: theta = 2d0*pi*75d0/360d0
-  complex(8),parameter :: zeps_IR = (-17.2d0, 29.6d0)
+  real(8),parameter :: theta = 2d0*pi*70d0/360d0
+  complex(8),parameter :: zeps_IR = (-15.8d0, 26.7d0)
   complex(8),parameter :: zeps_SHG= (-5.11d0, 9.77d0)
   complex(8),parameter :: zeps_THz= (-1.4d4, 2.8d5)
   
@@ -69,7 +69,7 @@ subroutine input
   read(*,*)t_delay
   t_delay = t_delay*fs
 
-  Tprop = 400.0d3*fs
+  Tprop = 1000.0d3*fs
   write(*,*)"Propagation time (a.u.)",Tprop
   write(*,*)"Propagation length (nm)",v_SHG*Tprop/nm
   write(*,*)"Tpulse_IR  (fs)",Tpulse_IR/fs
@@ -159,6 +159,10 @@ subroutine propagation
   s_interference = sum(real(zE_shg*conjg(zE_shg_chi2)))*hx
   char = "t_delay (fs), TFISH intensity (arb. units), Re[E_TFISH*E_chi2^*]"
   write(*,'(A,2x,3e26.16e3)')trim(char),t_delay/fs,s_tfish, s_interference
+
+  open(101,file="results.out")
+  write(101,'(3e26.16e3)')t_delay/fs,s_tfish, s_interference
+  close(101)
 
 end subroutine propagation
 !-------------------------------------------------------------------------
@@ -287,12 +291,17 @@ subroutine calc_Pt(tt)
 
 ! calc chi2 contribution
   zfact = 2d0*cos(theta)/&
-      ( sqrt(zeps_SHG - sin(theta)**2) + zeps_SHG*cos(theta) )
+      ( sqrt(zeps_IR - sin(theta)**2) + zeps_IR*cos(theta) )
+  zfact = zfact**2
+!  zfact = zfact*2d0*cos(theta)*sqrt(zeps_SHG)/&
+!      ( sqrt(zeps_SHG - sin(theta)**2) + zeps_SHG*cos(theta) )
 
+!  write(*,*)"zfact=",zfact
 
   do ix = 0, nx
     ss = xx(ix)/v_SHG
-    zE_shg_chi2(ix) = zi*zchi2*(1d0/zr_SHG)*cos(pi*ss/Tpulse_IR)**4*zfact**2
+!    zE_shg_chi2(ix) = zi*zchi2*(1d0/zr_SHG)*cos(pi*ss/Tpulse_IR)**4*zfact
+    zE_shg_chi2(ix) = zi*zchi2*cos(pi*ss/Tpulse_IR)**4*zfact
   end do
 
 

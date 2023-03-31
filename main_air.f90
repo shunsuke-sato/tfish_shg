@@ -64,7 +64,7 @@ subroutine input
   read(*,*)t_delay
   t_delay = t_delay*fs
 
-  Tprop = 400.0d3*fs
+  Tprop = 1000.0d3*fs
   write(*,*)"Propagation time (a.u.)",Tprop
   write(*,*)"Propagation length (nm)",v_SHG*Tprop/nm
   write(*,*)"Tpulse_IR  (fs)",Tpulse_IR/fs
@@ -154,6 +154,10 @@ subroutine propagation
   s_interference = sum(real(zE_shg*conjg(zE_shg_chi2)))*hx
   char = "t_delay (fs), TFISH intensity (arb. units), Re[E_TFISH*E_chi2^*]"
   write(*,'(A,2x,3e26.16e3)')trim(char),t_delay/fs,s_tfish, s_interference
+
+  open(101,file="results.out")
+  write(101,'(3e26.16e3)')t_delay/fs,s_tfish, s_interference
+  close(101)
 
 end subroutine propagation
 !-------------------------------------------------------------------------
