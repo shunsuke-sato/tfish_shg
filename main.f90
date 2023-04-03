@@ -298,10 +298,13 @@ subroutine calc_Pt(tt)
 
 !  write(*,*)"zfact=",zfact
 
+  zE_shg_chi2 = 0d0
   do ix = 0, nx
     ss = xx(ix)/v_SHG
 !    zE_shg_chi2(ix) = zi*zchi2*(1d0/zr_SHG)*cos(pi*ss/Tpulse_IR)**4*zfact
-    zE_shg_chi2(ix) = zi*zchi2*cos(pi*ss/Tpulse_IR)**4*zfact
+    if(abs(ss/Tpulse_IR) < 0.5d0)then
+      zE_shg_chi2(ix) = zi*zchi2*cos(pi*ss/Tpulse_IR)**4*zfact
+    end if
   end do
 
 
